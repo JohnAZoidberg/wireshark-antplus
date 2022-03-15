@@ -21,12 +21,12 @@ local ant_version   = ProtoField.string ("ant.version.str", "ANT Version", base.
 local serial_number = ProtoField.uint32 ("ant.serial_number.int", "Serial Number", base.DEC)
 local channel_num   = ProtoField.uint8  ("ant.channel_num", "Channel Number", base.DEC)
 local channel_types	= {
-  [0x00] = "Bidi Slave Channel",
-  [0x01] = "Bidi Master",
-  [0x02] = "Shared Bidi Slave",
-  [0x04] = "Shared Bidi master",
-  [0x08] = "Slave Receive Only (diagnostic)",
-  [0x10] = "Master Transmit Only (legacy)",
+  [0x00] = "Bidi Slave/Receive Channel",
+  [0x01] = "Bidi Master/Transmit Channel",
+  [0x02] = "Shared Bidi Slave/Receive",
+  [0x04] = "Shared Bidi Master/Transmit",
+  [0x08] = "Slave/Receive Only (diagnostic)",
+  [0x10] = "Master/Transmit Only (legacy)",
 }
 local channel_type  = ProtoField.uint8  ("ant.channel_status.channel_type", "Channel Type", base.DEC, channel_type, 0xF0)
 local network_num   = ProtoField.uint8  ("ant.channel_status.network_num", "Network Number", base.DEC)
@@ -63,6 +63,18 @@ local device_num    = ProtoField.uint8  ("ant.device_num",     "Device Number", 
 local dev_type_id   = ProtoField.uint8  ("ant.dev_type_id",    "Device Type ID",               base.HEX)
 local tx_type       = ProtoField.uint8  ("ant.tx_type",        "Transmission Type",            base.HEX)
 
+local filler        = ProtoField.uint8  ("ant.filler", "Filler", base.HEX)
+
+local extended_assign_states = {
+  [0x00] = "None",
+  [0x01] = "Background Scanning Enable",
+  [0x04] = "Frequency Agility Enable",
+  [0x10] = "Fast Channel Initialization Enable",
+  [0x20] = "Asynchronous Transmission Enable"
+}
+local extended_assign = ProtoField.uint8  ("ant.assign_channel.extended_assign", "Extended Assign",  base.DEC, extended_assign_states)
+local msg_period    = ProtoField.uint8  ("ant.msg_period.period", "Channel Messaging Period",  base.DEC)
+
 ant_plus_protocol.fields = {
   sync, msg_len, msg_id, msg_content, checksum,
   -- Ant Version Message
@@ -97,6 +109,12 @@ ant_plus_protocol.fields = {
   device_num,
   dev_type_id,
   tx_type,
+  -- Generic
+  filler,
+  -- Assign Channel Message
+  extended_assign,
+  -- Channel Messaging Period Message
+  msg_period,
 }
 
 local invalid_checksum = ProtoExpert.new("ant.invalid_checksum_expert", "Invalid checksum",
@@ -145,8 +163,18 @@ function ant_plus_protocol.dissector(buffer, pinfo, tree)
   -- TODO: Parse outgoing messages to device
   if id == 0x42 then
     messageSubtree:add(msg_name, "Assign Channel Message")
+    messageSubtree:add(channel_num, content_buffer(0, 1))
+    messageSubtree:add(channel_type, content_buffer(1, 1))
+    messageSubtree:add(network_num, content_buffer(2, 1))
+    messageSubtree:add(extended_assign, content_buffer(3, 1))
   elseif id == 0x43 then
     messageSubtree:add(msg_name, "Channel Messaging Period Message")
+    messageSubtree:add(channel_num, content_buffer(0, 1))
+    -- TODO: Is there a better way to modify the data?
+    local raw_period = content_buffer(1, 2):le_uint()
+    local period = 32768 / raw_period
+    local text = "Messaging Period: ".. raw_period .. " (" .. string.format("%.3f", period) .. " Hz)"
+    messageSubtree:add(msg_period, content_buffer(1, 2)):set_text(text)
   elseif id == 0x44 then
     messageSubtree:add(msg_name, "Channel Search Timeout Message")
   elseif id == 0x45 then
@@ -155,10 +183,13 @@ function ant_plus_protocol.dissector(buffer, pinfo, tree)
     messageSubtree:add(msg_name, "Set Network Key Message")
   elseif id == 0x4a then
     messageSubtree:add(msg_name, "Reset System Message")
+    messageSubtree:add(filler, content_buffer(0, 1))
   elseif id == 0x4b then
     messageSubtree:add(msg_name, "Open Channel Message")
+    messageSubtree:add(channel_num, content_buffer(0, 1))
   elseif id == 0x4c then
     messageSubtree:add(msg_name, "Close Channel Message")
+    messageSubtree:add(channel_num, content_buffer(0, 1))
   elseif id == 0x4d then
     messageSubtree:add(msg_name, "Request Message")
     messageSubtree:add(channel_num, content_buffer(0, 1))
