@@ -157,6 +157,7 @@ function ant_plus_protocol.dissector(buffer, pinfo, tree)
     messageSubtree:add(msg_name, "Reset System Message")
   elseif id == 0x4b then
     messageSubtree:add(msg_name, "Open Channel Message")
+    messageSubtree:add(channel_num, content_buffer(0, 1))
   elseif id == 0x4c then
     messageSubtree:add(msg_name, "Close Channel Message")
   elseif id == 0x4d then
