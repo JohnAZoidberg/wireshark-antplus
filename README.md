@@ -28,4 +28,4 @@ TODO:
 - [x] Decode common messages
 - [x] Validate checksum and show warning in expert dialog
 - [ ] Keep track of channel device type to statefully decode broadcast messages (ANT+ data pages)
-- [ ] Test decoding
+- [x] Test decoding
