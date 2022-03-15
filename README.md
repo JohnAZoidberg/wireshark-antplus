@@ -5,6 +5,7 @@ Can be used to capture traffic between an application, such as
 [SensorWrangler](https://github.com/JohnAZoidberg/SensorWrangler) and an ANT+
 USB transceiver.
 
+![Example Screenshot](ant_wireshark_example.png)
 
 Prerequisites:
 
